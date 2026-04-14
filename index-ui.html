@@ -1,0 +1,2802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImageLens — 图片智能查看</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #111113;
+  --bg-tertiary: #18181b;
+  --bg-elevated: #1e1e22;
+  --bg-hover: #252529;
+  --bg-active: #2a2a2f;
+  --border: #27272a;
+  --border-subtle: #1e1e22;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-muted: #52525b;
+  --accent: #06b6d4;
+  --accent-dim: rgba(6, 182, 212, 0.12);
+  --accent-hover: #22d3ee;
+  --success: #22c55e;
+  --success-dim: rgba(34, 197, 94, 0.12);
+  --warning: #f59e0b;
+  --warning-dim: rgba(245, 158, 11, 0.12);
+  --error: #ef4444;
+  --error-dim: rgba(239, 68, 68, 0.12);
+  --skip: #71717a;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --font-sans: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  --sidebar-w: 220px;
+  --topbar-h: 48px;
+  --statusbar-h: 32px;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-active); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ═══════════════════════════════════════════
+   LAYOUT SHELL
+   ═══════════════════════════════════════════ */
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: var(--topbar-h) 1fr var(--statusbar-h);
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ═══════════════════════════════════════════
+   SIDEBAR
+   ═══════════════════════════════════════════ */
+.sidebar {
+  grid-row: 1 / -1;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  z-index: 10;
+}
+
+.sidebar-brand {
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-brand .logo {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.sidebar-brand span {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 8px;
+  overflow-y: auto;
+}
+
+.nav-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  padding: 8px 12px 6px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  transition: all 0.15s;
+  user-select: none;
+  margin-bottom: 1px;
+}
+
+.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-item.active { background: var(--accent-dim); color: var(--accent); font-weight: 500; }
+
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active svg { opacity: 1; }
+
+.nav-item .badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--bg-active);
+  color: var(--text-tertiary);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.nav-item.active .badge {
+  background: var(--accent);
+  color: #000;
+}
+
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-footer .nav-item { margin-bottom: 0; }
+
+/* ═══════════════════════════════════════════
+   TOP BAR
+   ═══════════════════════════════════════════ */
+.topbar {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+.topbar-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.topbar-title strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.search-box {
+  flex: 1;
+  max-width: 400px;
+  position: relative;
+}
+
+.search-box svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+.search-box input {
+  width: 100%;
+  height: 30px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 10px 0 30px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-box input::placeholder { color: var(--text-muted); }
+.search-box input:focus { border-color: var(--accent); }
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all 0.15s;
+  border: none;
+  background: none;
+}
+
+.icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+.btn-primary {
+  height: 30px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary svg { width: 14px; height: 14px; }
+
+/* ═══════════════════════════════════════════
+   MAIN CONTENT AREA
+   ═══════════════════════════════════════════ */
+.main-content {
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-primary);
+}
+
+.page { display: none; height: 100%; }
+.page.active { display: flex; }
+
+/* ═══════════════════════════════════════════
+   BROWSE PAGE (图片浏览)
+   ═══════════════════════════════════════════ */
+.browse-page {
+  flex-direction: column;
+  height: 100%;
+}
+
+.browse-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.chip:hover { border-color: var(--text-muted); color: var(--text-primary); }
+.chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+.chip svg { width: 12px; height: 12px; }
+
+.layout-toggle {
+  margin-left: auto;
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.layout-toggle button {
+  width: 26px;
+  height: 24px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.layout-toggle button.active { background: var(--bg-active); color: var(--text-primary); }
+.layout-toggle button svg { width: 14px; height: 14px; }
+
+/* Grid */
+.browse-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.image-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 1;
+  background: var(--bg-tertiary);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.image-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.image-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.image-card .overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 12px;
+}
+
+.image-card:hover .overlay { opacity: 1; }
+
+.image-card .overlay .filename {
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.image-card .overlay .tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.image-card .overlay .tag {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.85);
+  backdrop-filter: blur(4px);
+}
+
+.image-card .ai-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 3px;
+}
+
+.ai-type-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.image-card:hover .ai-type-dot { opacity: 1; }
+
+.ai-type-dot.object { background: #3b82f6; }
+.ai-type-dot.scene { background: #22c55e; }
+.ai-type-dot.activity { background: #f59e0b; }
+.ai-type-dot.emotion { background: #ec4899; }
+.ai-type-dot.text { background: #fb923c; }
+
+/* ═══════════════════════════════════════════
+   DETAIL PANEL (右侧详情面板)
+   ═══════════════════════════════════════════ */
+.detail-panel {
+  width: 380px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.detail-panel.open { display: flex; }
+
+.detail-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-header .preview-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.detail-header .info { flex: 1; min-width: 0; }
+.detail-header .info .name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.detail-header .info .meta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.detail-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+}
+
+.detail-tab {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.detail-tab:hover { color: var(--text-secondary); }
+.detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+
+.detail-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.detail-row .label { color: var(--text-tertiary); }
+.detail-row .value { color: var(--text-primary); text-align: right; max-width: 60%; word-break: break-all; }
+
+/* AI Result Cards */
+.ai-dimension {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.ai-dimension-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ai-dimension-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ai-dimension-label .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ai-dimension-label .dot.object { background: #3b82f6; }
+.ai-dimension-label .dot.scene { background: #22c55e; }
+.ai-dimension-label .dot.activity { background: #f59e0b; }
+.ai-dimension-label .dot.emotion { background: #ec4899; }
+
+.ai-confidence {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.ai-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ai-value.null {
+  color: var(--text-muted);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.confidence-bar {
+  height: 3px;
+  background: var(--bg-active);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.confidence-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.confidence-bar-fill.high { background: var(--success); }
+.confidence-bar-fill.medium { background: var(--warning); }
+.confidence-bar-fill.low { background: var(--error); }
+
+/* Object list */
+.object-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.object-item:last-child { border-bottom: none; }
+
+.object-item .obj-name {
+  font-size: 12px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.object-item .obj-conf {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
+
+/* Tags */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-item {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--bg-active);
+  color: var(--text-secondary);
+}
+
+.tag-item.user-tag {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* Category badge */
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════
+   STATUS BAR
+   ═══════════════════════════════════════════ */
+.statusbar {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  gap: 0;
+}
+
+.statusbar-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 0 12px;
+  height: 100%;
+  transition: background 0.15s;
+  flex: 1;
+}
+
+.statusbar-progress:hover { background: var(--bg-hover); }
+
+.statusbar-progress .bar-track {
+  width: 120px;
+  height: 4px;
+  background: var(--bg-active);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.statusbar-progress .bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.statusbar-progress.completed .bar-fill { background: var(--success); }
+
+.statusbar-progress .label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.statusbar-progress .label .count { color: var(--text-secondary); font-weight: 500; }
+.statusbar-progress .label .total { color: var(--text-muted); }
+.statusbar-progress .label .pct { color: var(--text-muted); margin-left: 4px; }
+
+.statusbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ═══════════════════════════════════════════
+   PROGRESS PANEL (进度面板 - 从底部弹出)
+   ═══════════════════════════════════════════ */
+.progress-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.progress-panel-backdrop.open { opacity: 1; pointer-events: auto; }
+
+.progress-panel {
+  position: fixed;
+  bottom: 0;
+  left: var(--sidebar-w);
+  right: 0;
+  height: 440px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  z-index: 101;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+}
+
+.progress-panel.open { transform: translateY(0); }
+
+.progress-panel-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.progress-panel-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.progress-panel-header .batch-info {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-left: 12px;
+  flex: 1;
+}
+
+.progress-panel-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-sm {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s;
+}
+
+.btn-sm:hover { background: var(--bg-hover); color: var(--text-primary); }
+.btn-sm.danger:hover { background: var(--error-dim); border-color: var(--error); color: var(--error); }
+.btn-sm svg { width: 12px; height: 12px; }
+
+/* Total progress summary */
+.progress-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.progress-summary .bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-active);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-summary .bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.progress-summary .bar-fill.done { background: var(--success); }
+
+.progress-summary .stats {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.progress-summary .stat { display: flex; align-items: center; gap: 4px; }
+.progress-summary .stat .dot { width: 6px; height: 6px; border-radius: 50%; }
+.progress-summary .stat .dot.done { background: var(--success); }
+.progress-summary .stat .dot.fail { background: var(--error); }
+.progress-summary .stat .dot.active { background: var(--accent); animation: pulse 1.5s infinite; }
+.progress-summary .stat .n { color: var(--text-secondary); font-family: var(--font-mono); }
+.progress-summary .stat .lbl { color: var(--text-muted); }
+
+/* Task list */
+.progress-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.progress-task {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  height: 40px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  transition: background 0.1s;
+}
+
+.progress-task:hover { background: var(--bg-hover); }
+
+.progress-task .task-name {
+  width: 180px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progress-task .task-pipes {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+}
+
+.progress-task .pipe {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  min-width: 140px;
+}
+
+.progress-task .pipe .pipe-label {
+  color: var(--text-muted);
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.progress-task .pipe .pipe-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-task .pipe .pipe-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 7px;
+}
+
+.progress-task .pipe .pipe-detail {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.progress-task .task-result {
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+  width: 50px;
+  text-align: right;
+}
+
+.progress-task .task-result.done { color: var(--success); }
+.progress-task .task-result.active { color: var(--accent); }
+.progress-task .task-result.fail { color: var(--error); }
+
+.progress-task .retry-btn {
+  font-size: 10px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--accent-dim);
+  border: none;
+  font-family: var(--font-sans);
+  flex-shrink: 0;
+}
+
+.progress-task .retry-btn:hover { background: var(--accent); color: #000; }
+
+/* Status icons */
+.s-ok { background: var(--success-dim); color: var(--success); }
+.s-run { background: var(--accent-dim); color: var(--accent); animation: pulse 1.5s infinite; }
+.s-wait { background: var(--bg-active); color: var(--text-muted); }
+.s-err { background: var(--error-dim); color: var(--error); }
+.s-skip { background: var(--bg-active); color: var(--skip); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ═══════════════════════════════════════════
+   PLUGIN PAGE
+   ═══════════════════════════════════════════ */
+.plugin-page {
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.plugin-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.plugin-page-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.plugin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.plugin-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: border-color 0.15s;
+}
+
+.plugin-card:hover { border-color: var(--text-muted); }
+
+.plugin-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.plugin-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--bg-active);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.plugin-card-header .info { flex: 1; }
+.plugin-card-header .info .name { font-size: 13px; font-weight: 600; }
+.plugin-card-header .info .version { font-size: 11px; color: var(--text-muted); }
+
+.plugin-card .desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.plugin-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plugin-card-footer .rating {
+  font-size: 11px;
+  color: var(--warning);
+}
+
+.plugin-status-btn {
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.plugin-status-btn.install { background: var(--accent); color: #000; }
+.plugin-status-btn.install:hover { background: var(--accent-hover); }
+.plugin-status-btn.installed { background: var(--success-dim); color: var(--success); }
+.plugin-status-btn.installed:hover { background: var(--success); color: #fff; }
+
+/* ═══════════════════════════════════════════
+   SETTINGS PAGE
+   ═══════════════════════════════════════════ */
+.settings-page {
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.settings-page h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.settings-group {
+  max-width: 560px;
+  margin-bottom: 32px;
+}
+
+.settings-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.setting-row:last-child { border-bottom: none; }
+
+.setting-label .title {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.setting-label .desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Toggle switch */
+.toggle {
+  width: 36px;
+  height: 20px;
+  background: var(--bg-active);
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle.on { background: var(--accent); }
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+
+.toggle.on::after { transform: translateX(16px); }
+
+/* Select */
+.setting-select {
+  height: 28px;
+  padding: 0 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  outline: none;
+  cursor: pointer;
+}
+
+.setting-select:focus { border-color: var(--accent); }
+
+.setting-range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.setting-slider {
+  -webkit-appearance: none;
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-active);
+  outline: none;
+}
+
+.setting-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg-secondary);
+}
+
+.setting-range-val {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 30px;
+}
+
+/* Input field */
+.setting-input {
+  width: 200px;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  outline: none;
+  text-align: right;
+}
+
+.setting-input:focus { border-color: var(--accent); }
+
+/* ═══════════════════════════════════════════
+   IMPORT DIALOG (导入弹窗)
+   ═══════════════════════════════════════════ */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.dialog-backdrop.open { display: flex; }
+
+.dialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  width: 480px;
+  box-shadow: var(--shadow-lg);
+  animation: dialogIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dialogIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.dialog-header {
+  padding: 20px 24px 0;
+}
+
+.dialog-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dialog-header p {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+.dialog-body {
+  padding: 20px 24px;
+}
+
+.import-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 8px;
+}
+
+.import-option:hover { border-color: var(--text-muted); background: var(--bg-hover); }
+.import-option.selected { border-color: var(--accent); background: var(--accent-dim); }
+
+.import-option .icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-active);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.import-option .icon svg { width: 20px; height: 20px; color: var(--text-secondary); }
+.import-option.selected .icon { background: var(--accent); }
+.import-option.selected .icon svg { color: #000; }
+
+.import-option .text .title { font-size: 13px; font-weight: 500; }
+.import-option .text .desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.dialog-footer {
+  padding: 0 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-ghost {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.btn-accent {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  background: var(--accent);
+  color: #000;
+  transition: all 0.15s;
+}
+
+.btn-accent:hover { background: var(--accent-hover); }
+.btn-accent:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ═══════════════════════════════════════════
+   IMAGE PREVIEW MODAL
+   ═══════════════════════════════════════════ */
+.preview-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 150;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-modal.open { display: flex; }
+
+.preview-modal img {
+  max-width: 85vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.preview-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+.preview-close:hover { background: rgba(255,255,255,0.2); }
+.preview-close svg { width: 18px; height: 18px; }
+
+.preview-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+.preview-arrow:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border-color: rgba(255,255,255,0.25);
+}
+
+.preview-arrow:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.preview-arrow.prev { left: 20px; }
+.preview-arrow.next { right: 20px; }
+
+.preview-arrow svg { width: 20px; height: 20px; }
+
+.preview-counter {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  font-family: var(--font-mono);
+  z-index: 10;
+  pointer-events: none;
+  background: rgba(0,0,0,0.4);
+  padding: 4px 12px;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.preview-filename {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  font-weight: 500;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-img-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 60px 80px;
+  min-width: 0;
+}
+
+.preview-img-wrapper img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  transition: opacity 0.15s ease;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.preview-img-wrapper img.switching {
+  opacity: 0.3;
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════ */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.image-card { animation: fadeIn 0.3s ease both; }
+.image-card:nth-child(1) { animation-delay: 0.02s; }
+.image-card:nth-child(2) { animation-delay: 0.04s; }
+.image-card:nth-child(3) { animation-delay: 0.06s; }
+.image-card:nth-child(4) { animation-delay: 0.08s; }
+.image-card:nth-child(5) { animation-delay: 0.10s; }
+.image-card:nth-child(6) { animation-delay: 0.12s; }
+.image-card:nth-child(7) { animation-delay: 0.14s; }
+.image-card:nth-child(8) { animation-delay: 0.16s; }
+
+/* ═══════════════════════════════════════════
+   TEXT CONTENT (OCR)
+   ═══════════════════════════════════════════ */
+.text-content-box {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.text-regions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.text-region-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.text-region-item .region-idx {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--bg-active);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.text-region-item .region-text {
+  flex: 1;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-region-item .region-conf {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   PEOPLE PAGE
+   ═══════════════════════════════════════════ */
+.people-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+.person-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 12px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.person-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.person-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.person-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 10px;
+  border: 2px solid var(--border);
+}
+
+.person-card:hover .person-avatar { border-color: var(--text-muted); }
+.person-card.selected .person-avatar { border-color: var(--accent); }
+
+.person-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.person-name[contenteditable="true"] {
+  outline: none;
+  border-bottom: 1px dashed var(--accent);
+  cursor: text;
+}
+
+.person-stat {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.person-merge-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-tertiary);
+  background: var(--accent);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #000;
+  font-weight: 700;
+}
+
+.person-card.selected .person-merge-badge { display: flex; }
+
+.people-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.people-toolbar .count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.people-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.people-empty svg { width: 48px; height: 48px; opacity: 0.3; }
+.people-empty p { font-size: 13px; }
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .detail-panel { width: 320px; }
+  .progress-panel-body { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 700px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .progress-panel { left: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- ═══════ SIDEBAR ═══════ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">IL</div>
+      <span>ImageLens</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">浏览</div>
+      <div class="nav-item active" data-page="browse" onclick="switchPage('browse')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        全部图片
+        <span class="badge">1,247</span>
+      </div>
+      <div class="nav-item" data-page="browse" onclick="switchPage('browse')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        最近导入
+      </div>
+
+      <div class="nav-section-title">智能分类</div>
+      <div class="nav-item" onclick="filterByCategory('风景')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        风景
+        <span class="badge">328</span>
+      </div>
+      <div class="nav-item" onclick="filterByCategory('人像')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        人像
+        <span class="badge">215</span>
+      </div>
+      <div class="nav-item" onclick="filterByCategory('美食')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        美食
+        <span class="badge">89</span>
+      </div>
+      <div class="nav-item" onclick="filterByCategory('建筑')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
+        建筑
+        <span class="badge">156</span>
+      </div>
+      <div class="nav-item" onclick="filterByCategory('运动')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        运动
+        <span class="badge">73</span>
+      </div>
+      <div class="nav-item" onclick="filterByCategory('家庭')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        家庭
+        <span class="badge">112</span>
+      </div>
+
+      <div class="nav-section-title">人物</div>
+      <div class="nav-item" data-page="people" onclick="switchPage('people')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        人物
+        <span class="badge">6</span>
+      </div>
+
+      <div class="nav-section-title">系统</div>
+      <div class="nav-item" data-page="plugins" onclick="switchPage('plugins')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        插件管理
+      </div>
+      <div class="nav-item" data-page="settings" onclick="switchPage('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        设置
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="nav-item" style="color: var(--text-muted); font-size: 11px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        v2.0.0
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════ TOP BAR ═══════ -->
+  <header class="topbar">
+    <div class="topbar-title"><strong>全部图片</strong> — 1,247 张</div>
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="搜索文件名、标签、分类…" />
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" title="排序">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/></svg>
+      </button>
+      <button class="btn-primary" onclick="openImportDialog()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        导入
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════ MAIN CONTENT ═══════ -->
+  <main class="main-content">
+    <!-- BROWSE PAGE -->
+    <div class="page active" id="page-browse">
+      <div class="browse-page" style="display:flex; flex-direction:column; width:100%;">
+        <div class="browse-toolbar">
+          <div class="filter-chips">
+            <button class="chip active" onclick="setFilter(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              全部
+            </button>
+            <button class="chip" onclick="setFilter(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+              物体
+            </button>
+            <button class="chip" onclick="setFilter(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              场景
+            </button>
+            <button class="chip" onclick="setFilter(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              活动
+            </button>
+            <button class="chip" onclick="setFilter(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              情绪
+            </button>
+            <button class="chip" onclick="setFilter(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+              文字
+            </button>
+          </div>
+          <div class="layout-toggle">
+            <button class="active" title="网格视图">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </button>
+            <button title="列表视图">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </button>
+            <button title="瀑布流">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="10" rx="1"/><rect x="10" y="3" width="5" height="7" rx="1"/><rect x="17" y="3" width="5" height="12" rx="1"/><rect x="3" y="15" width="5" height="6" rx="1"/><rect x="10" y="12" width="5" height="9" rx="1"/><rect x="17" y="17" width="5" height="4" rx="1"/></svg>
+            </button>
+          </div>
+        </div>
+        <div style="display:flex; flex:1; overflow:hidden;">
+          <div class="browse-grid">
+            <div class="image-grid" id="imageGrid">
+              <!-- Image cards will be populated by JS -->
+            </div>
+          </div>
+          <!-- DETAIL PANEL -->
+          <div class="detail-panel" id="detailPanel">
+            <div class="detail-header">
+              <img class="preview-thumb" id="detailThumb" src="" alt="">
+              <div class="info">
+                <div class="name" id="detailName">IMG_20260412_143022.jpg</div>
+                <div class="meta" id="detailMeta">3840 × 2160 · 4.2 MB · JPEG</div>
+              </div>
+              <button class="icon-btn" onclick="closeDetail()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="detail-tabs">
+              <div class="detail-tab active" onclick="switchDetailTab(this, 'ai')">AI 识别</div>
+              <div class="detail-tab" onclick="switchDetailTab(this, 'exif')">元数据</div>
+              <div class="detail-tab" onclick="switchDetailTab(this, 'info')">文件信息</div>
+            </div>
+            <div class="detail-body" id="detailBody">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ PEOPLE PAGE ═══════ -->
+    <div class="page" id="page-people">
+      <div class="people-toolbar">
+        <h2 style="font-size: 15px; font-weight: 600;">人物</h2>
+        <button class="btn-sm" onclick="alert('合并选中人物')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6L21 6"/><path d="M8 12L21 12"/><path d="M8 18L21 18"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+          合并
+        </button>
+        <button class="btn-sm" onclick="alert('拆分选中人物')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-5"/><path d="M12 7V3"/></svg>
+          拆分
+        </button>
+        <span class="count">6 个已识别人物</span>
+      </div>
+      <div class="people-grid" id="peopleGrid"></div>
+    </div>
+
+    <!-- PLUGIN PAGE -->
+    <div class="page" id="page-plugins">
+      <div class="plugin-page">
+        <div class="plugin-page-header">
+          <h2>插件管理</h2>
+          <button class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><line x1="12" y1="12" x2="12" y2="21"/><polyline points="8 17 12 21 16 17"/></svg>
+            安装插件
+          </button>
+        </div>
+        <div class="plugin-grid">
+          <div class="plugin-card">
+            <div class="plugin-card-header">
+              <div class="plugin-icon">🗺️</div>
+              <div class="info">
+                <div class="name">地图视图</div>
+                <div class="version">v2.1.0 · 布局插件</div>
+              </div>
+            </div>
+            <div class="desc">基于 GPS 元数据在地图上展示照片拍摄位置，支持按时间线回放拍摄轨迹。</div>
+            <div class="plugin-card-footer">
+              <div class="rating">★★★★★ 4.8</div>
+              <button class="plugin-status-btn installed">已安装</button>
+            </div>
+          </div>
+          <div class="plugin-card">
+            <div class="plugin-card-header">
+              <div class="plugin-icon">📅</div>
+              <div class="info">
+                <div class="name">时间轴</div>
+                <div class="version">v1.4.2 · 布局插件</div>
+              </div>
+            </div>
+            <div class="desc">按拍摄时间排列照片，自动分组为年/月/日层级，直观回顾拍摄历程。</div>
+            <div class="plugin-card-footer">
+              <div class="rating">★★★★☆ 4.5</div>
+              <button class="plugin-status-btn installed">已安装</button>
+            </div>
+          </div>
+          <div class="plugin-card">
+            <div class="plugin-card-header">
+              <div class="plugin-icon">🎨</div>
+              <div class="info">
+                <div class="name">色彩分析</div>
+                <div class="version">v1.0.3 · 功能插件</div>
+              </div>
+            </div>
+            <div class="desc">提取图片主色调和调色板，支持按颜色搜索和筛选图片。</div>
+            <div class="plugin-card-footer">
+              <div class="rating">★★★★☆ 4.2</div>
+              <button class="plugin-status-btn install">安装</button>
+            </div>
+          </div>
+          <div class="plugin-card">
+            <div class="plugin-card-header">
+              <div class="plugin-icon">🔍</div>
+              <div class="info">
+                <div class="name">相似图片</div>
+                <div class="version">v1.2.0 · 功能插件</div>
+              </div>
+            </div>
+            <div class="desc">基于感知哈希算法检测相似或重复图片，帮助清理冗余文件。</div>
+            <div class="plugin-card-footer">
+              <div class="rating">★★★★★ 4.9</div>
+              <button class="plugin-status-btn install">安装</button>
+            </div>
+          </div>
+          <div class="plugin-card">
+            <div class="plugin-card-header">
+              <div class="plugin-icon">💧</div>
+              <div class="info">
+                <div class="name">批量水印</div>
+                <div class="version">v0.9.1 · 功能插件</div>
+              </div>
+            </div>
+            <div class="desc">为图片批量添加文字或图片水印，支持自定义位置、透明度和样式。</div>
+            <div class="plugin-card-footer">
+              <div class="rating">★★★☆☆ 3.7</div>
+              <button class="plugin-status-btn install">安装</button>
+            </div>
+          </div>
+          <div class="plugin-card">
+            <div class="plugin-card-header">
+              <div class="plugin-icon">📐</div>
+              <div class="info">
+                <div class="name">拼贴画</div>
+                <div class="version">v1.1.0 · 布局插件</div>
+              </div>
+            </div>
+            <div class="desc">将多张图片自动排列为拼贴画布局，支持多种模板和自定义间距。</div>
+            <div class="plugin-card-footer">
+              <div class="rating">★★★★☆ 4.3</div>
+              <button class="plugin-status-btn install">安装</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page" id="page-settings">
+      <div class="settings-page">
+        <h2>设置</h2>
+
+        <div class="settings-group">
+          <div class="settings-group-title">AI 识别</div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">AI 服务模式</div>
+              <div class="desc">选择云端 API 或本地模型进行图片识别</div>
+            </div>
+            <select class="setting-select">
+              <option>云端 API</option>
+              <option>本地模型</option>
+              <option>自动（优先云端）</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">云端 API 提供商</div>
+              <div class="desc">当前使用的云端 AI 服务</div>
+            </div>
+            <select class="setting-select">
+              <option>OpenAI GPT-4o Vision</option>
+              <option>Qwen2.5-VL</option>
+              <option>AWS Rekognition</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">API Key</div>
+              <div class="desc">云端 API 认证密钥</div>
+            </div>
+            <input type="password" class="setting-input" value="sk-••••••••••••••••" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">AI 识别并发数</div>
+              <div class="desc">同时进行的 AI 识别请求数量</div>
+            </div>
+            <select class="setting-select">
+              <option>1（保守）</option>
+              <option selected>3（推荐）</option>
+              <option>5（激进）</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">文字识别（OCR）</div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">识别方案</div>
+              <div class="desc">选择文字识别引擎，切换后仅影响新导入的图片</div>
+            </div>
+            <select class="setting-select">
+              <option>PaddleOCR（推荐）</option>
+              <option>Tesseract</option>
+              <option>AI（随 AI 识别一起返回）</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">OCR 语言</div>
+              <div class="desc">PaddleOCR / Tesseract 使用的识别语言</div>
+            </div>
+            <select class="setting-select">
+              <option selected>自动检测</option>
+              <option>中文 + 英文</option>
+              <option>仅中文</option>
+              <option>仅英文</option>
+              <option>日文</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">最小置信度</div>
+              <div class="desc">低于此置信度的文字区域不存储</div>
+            </div>
+            <div class="setting-range">
+              <input type="range" min="0" max="100" value="50" class="setting-slider" />
+              <span class="setting-range-val">0.50</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">图片处理</div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">压缩图最大尺寸</div>
+              <div class="desc">AI 识别前图片缩放的最大像素尺寸</div>
+            </div>
+            <input type="text" class="setting-input" value="4096 × 4096" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">压缩目标大小</div>
+              <div class="desc">AI 识别用压缩图的最大文件大小</div>
+            </div>
+            <input type="text" class="setting-input" value="500 KB" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">自动清理压缩缓存</div>
+              <div class="desc">超过 30 天未访问的压缩图自动清理</div>
+            </div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">通用</div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">主题</div>
+              <div class="desc">界面外观主题</div>
+            </div>
+            <select class="setting-select">
+              <option selected>深色</option>
+              <option>浅色</option>
+              <option>跟随系统</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">语言</div>
+              <div class="desc">界面显示语言</div>
+            </div>
+            <select class="setting-select">
+              <option selected>简体中文</option>
+              <option>English</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="title">启动时检查更新</div>
+              <div class="desc">应用启动时自动检查新版本</div>
+            </div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════ STATUS BAR ═══════ -->
+  <footer class="statusbar">
+    <div class="statusbar-progress" onclick="toggleProgressPanel()">
+      <div class="bar-track"><div class="bar-fill" style="width: 70%"></div></div>
+      <div class="label"><span class="count">35</span><span class="total">/50</span><span class="pct">(70%)</span></div>
+    </div>
+    <div class="statusbar-right">
+      <span>1,247 张图片</span>
+      <span>数据库 128 MB</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══════ PROGRESS PANEL ═══════ -->
+<div class="progress-panel-backdrop" id="progressBackdrop" onclick="toggleProgressPanel()"></div>
+<div class="progress-panel" id="progressPanel">
+  <div class="progress-panel-header">
+    <h3>处理进度</h3>
+    <span class="batch-info">2026-04-12 导入 · 50 张图片</span>
+    <div class="progress-panel-actions">
+      <button class="btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        重试失败
+      </button>
+      <button class="btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        暂停
+      </button>
+      <button class="btn-sm danger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        取消全部
+      </button>
+    </div>
+  </div>
+  <div class="progress-summary">
+    <div class="bar-track"><div class="bar-fill" style="width: 70%"></div></div>
+    <div class="stats">
+      <div class="stat"><div class="dot done"></div><span class="n">35</span><span class="lbl">完成</span></div>
+      <div class="stat"><div class="dot active"></div><span class="n">8</span><span class="lbl">处理中</span></div>
+      <div class="stat"><div class="dot fail"></div><span class="n">2</span><span class="lbl">失败</span></div>
+      <div class="stat"><span class="n">5</span><span class="lbl">等待中</span></div>
+    </div>
+  </div>
+  <div class="progress-panel-body">
+    <div class="progress-task">
+      <span class="task-name">beach_sunset.jpg</span>
+      <div class="task-pipes">
+        <div class="pipe"><span class="pipe-label">本地</span><div class="pipe-icon s-ok">✓</div></div>
+        <div class="pipe"><span class="pipe-label">人物</span><div class="pipe-icon s-ok">✓</div><span class="pipe-detail">2人</span></div>
+        <div class="pipe"><span class="pipe-label">OCR</span><div class="pipe-icon s-ok">✓</div><span class="pipe-detail">42字</span></div>
+        <div class="pipe"><span class="pipe-label">AI</span><div class="pipe-icon s-ok">✓</div></div>
+      </div>
+      <span class="task-result done">完成</span>
+    </div>
+    <div class="progress-task">
+      <span class="task-name">cat_window.jpg</span>
+      <div class="task-pipes">
+        <div class="pipe"><span class="pipe-label">本地</span><div class="pipe-icon s-ok">✓</div></div>
+        <div class="pipe"><span class="pipe-label">人物</span><div class="pipe-icon s-skip">—</div><span class="pipe-detail">无人脸</span></div>
+        <div class="pipe"><span class="pipe-label">OCR</span><div class="pipe-icon s-skip">—</div><span class="pipe-detail">无文字</span></div>
+        <div class="pipe"><span class="pipe-label">AI</span><div class="pipe-icon s-ok">✓</div></div>
+      </div>
+      <span class="task-result done">完成</span>
+    </div>
+    <div class="progress-task">
+      <span class="task-name">family_park.jpg</span>
+      <div class="task-pipes">
+        <div class="pipe"><span class="pipe-label">本地</span><div class="pipe-icon s-ok">✓</div></div>
+        <div class="pipe"><span class="pipe-label">人物</span><div class="pipe-icon s-ok">✓</div><span class="pipe-detail">4人</span></div>
+        <div class="pipe"><span class="pipe-label">OCR</span><div class="pipe-icon s-ok">✓</div><span class="pipe-detail">无文字</span></div>
+        <div class="pipe"><span class="pipe-label">AI</span><div class="pipe-icon s-ok">✓</div></div>
+      </div>
+      <span class="task-result done">完成</span>
+    </div>
+    <div class="progress-task">
+      <span class="task-name">IMG_043.jpg</span>
+      <div class="task-pipes">
+        <div class="pipe"><span class="pipe-label">本地</span><div class="pipe-icon s-ok">✓</div></div>
+        <div class="pipe"><span class="pipe-label">人物</span><div class="pipe-icon s-run">⟳</div><span class="pipe-detail">识别中</span></div>
+        <div class="pipe"><span class="pipe-label">OCR</span><div class="pipe-icon s-wait">○</div></div>
+        <div class="pipe"><span class="pipe-label">AI</span><div class="pipe-icon s-ok">✓</div></div>
+      </div>
+      <span class="task-result active">处理中</span>
+    </div>
+    <div class="progress-task">
+      <span class="task-name">IMG_044.jpg</span>
+      <div class="task-pipes">
+        <div class="pipe"><span class="pipe-label">本地</span><div class="pipe-icon s-ok">✓</div></div>
+        <div class="pipe"><span class="pipe-label">人物</span><div class="pipe-icon s-wait">○</div></div>
+        <div class="pipe"><span class="pipe-label">OCR</span><div class="pipe-icon s-wait">○</div></div>
+        <div class="pipe"><span class="pipe-label">AI</span><div class="pipe-icon s-wait">○</div></div>
+      </div>
+      <span class="task-result active">处理中</span>
+    </div>
+    <div class="progress-task">
+      <span class="task-name">IMG_015.jpg</span>
+      <div class="task-pipes">
+        <div class="pipe"><span class="pipe-label">本地</span><div class="pipe-icon s-ok">✓</div></div>
+        <div class="pipe"><span class="pipe-label">人物</span><div class="pipe-icon s-ok">✓</div><span class="pipe-detail">1人</span></div>
+        <div class="pipe"><span class="pipe-label">OCR</span><div class="pipe-icon s-ok">✓</div><span class="pipe-detail">28字</span></div>
+        <div class="pipe"><span class="pipe-label">AI</span><div class="pipe-icon s-err">✕</div><span class="pipe-detail">API 超时</span></div>
+      </div>
+      <button class="retry-btn">重试</button>
+      <span class="task-result fail">失败</span>
+    </div>
+    <div class="progress-task">
+      <span class="task-name">IMG_003.jpg</span>
+      <div class="task-pipes">
+        <div class="pipe"><span class="pipe-label">本地</span><div class="pipe-icon s-skip">—</div></div>
+        <div class="pipe"><span class="pipe-label">人物</span><div class="pipe-icon s-skip">—</div></div>
+        <div class="pipe"><span class="pipe-label">OCR</span><div class="pipe-icon s-skip">—</div></div>
+        <div class="pipe"><span class="pipe-label">AI</span><div class="pipe-icon s-skip">—</div></div>
+      </div>
+      <span class="task-result done" style="color: var(--skip)">跳过</span>
+    </div>
+    <div class="progress-task">
+      <span class="task-name">IMG_045.jpg</span>
+      <div class="task-pipes">
+        <div class="pipe"><span class="pipe-label">本地</span><div class="pipe-icon s-wait">○</div></div>
+        <div class="pipe"><span class="pipe-label">人物</span><div class="pipe-icon s-wait">○</div></div>
+        <div class="pipe"><span class="pipe-label">OCR</span><div class="pipe-icon s-wait">○</div></div>
+        <div class="pipe"><span class="pipe-label">AI</span><div class="pipe-icon s-wait">○</div></div>
+      </div>
+      <span class="task-result" style="color: var(--text-muted)">等待中</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ IMPORT DIALOG ═══════ -->
+<div class="dialog-backdrop" id="importDialog">
+  <div class="dialog">
+    <div class="dialog-header">
+      <h3>导入图片</h3>
+      <p>选择文件夹或单个图片文件，系统将自动递归扫描子文件夹</p>
+    </div>
+    <div class="dialog-body">
+      <div class="import-option selected" onclick="selectImportOption(this)">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="text">
+          <div class="title">导入文件夹</div>
+          <div class="desc">递归扫描文件夹及所有子文件夹中的图片文件</div>
+        </div>
+      </div>
+      <div class="import-option" onclick="selectImportOption(this)">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <div class="text">
+          <div class="title">导入图片文件</div>
+          <div class="desc">选择一个或多个图片文件（支持 JPEG / PNG / WebP）</div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <button class="btn-ghost" onclick="closeImportDialog()">取消</button>
+      <button class="btn-accent">选择路径…</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ IMAGE PREVIEW MODAL ═══════ -->
+<div class="preview-modal" id="previewModal" onclick="closePreview()">
+  <div class="preview-filename" id="previewFilename"></div>
+  <button class="preview-close" onclick="closePreview()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <button class="preview-arrow prev" onclick="event.stopPropagation(); navigatePreview(-1)" title="上一张 (←)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <button class="preview-arrow next" onclick="event.stopPropagation(); navigatePreview(1)" title="下一张 (→)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+  <div class="preview-img-wrapper" onclick="event.stopPropagation()">
+    <img id="previewImage" src="" alt="" />
+  </div>
+  <div class="preview-counter" id="previewCounter"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════
+const imageData = [
+  {
+    id: 1, name: 'beach_sunset.jpg', src: 'assets/img-beach.jpg',
+    size: '4.2 MB', format: 'JPEG', width: 3840, height: 2160,
+    category: '风景',
+    detectedTypes: ['object', 'scene', 'activity', 'emotion', 'text'],
+  objects: [
+    { name: '海浪', confidence: 0.95 },
+    { name: '棕榈树', confidence: 0.88 },
+    { name: '人', confidence: 0.92 }
+  ],
+  scene: { type: '海滩', confidence: 0.96 },
+  activity: { type: '跑步', confidence: 0.82 },
+  emotion: { type: '欢乐', confidence: 0.90 },
+    text: {
+      content: 'Welcome to Golden Beach\nSunset Festival 2026\nApril 12-14',
+      regions: [
+        { text: 'Welcome to Golden Beach', confidence: 0.95, boundingBox: { x: 50, y: 20, width: 300, height: 40 } },
+        { text: 'Sunset Festival 2026', confidence: 0.92, boundingBox: { x: 80, y: 70, width: 240, height: 35 } },
+        { text: 'April 12-14', confidence: 0.90, boundingBox: { x: 120, y: 115, width: 160, height: 30 } }
+      ]
+    },
+    tags: ['海滩', '日落', '跑步', '金色', '海浪', '热带', '节日'],
+    exif: { camera: 'Sony A7R V', lens: 'FE 24-70mm f/2.8 GM II', aperture: 'f/8', shutter: '1/500s', iso: 'ISO 100', focal: '35mm', gps: '24.48°N, 118.09°E', date: '2026-04-10 18:32:15' }
+  },
+  {
+    id: 2, name: 'cat_window.jpg', src: 'assets/img-cat.jpg',
+    size: '3.1 MB', format: 'JPEG', width: 3024, height: 4032,
+    category: '动物',
+    detectedTypes: ['object', 'scene', 'emotion'],
+    objects: [
+      { name: '猫', confidence: 0.98 },
+      { name: '窗台', confidence: 0.85 }
+    ],
+    scene: { type: '卧室', confidence: 0.78 },
+    activity: null,
+    emotion: { type: '温馨', confidence: 0.88 },
+    tags: ['猫', '橘猫', '窗台', '午后', '慵懒', '阳光'],
+    exif: { camera: 'iPhone 17 Pro', lens: '主摄 26mm', aperture: 'f/1.78', shutter: '1/120s', iso: 'ISO 64', focal: '26mm', gps: null, date: '2026-04-08 14:22:08' }
+  },
+  {
+    id: 3, name: 'ramen_close.jpg', src: 'assets/img-food.jpg',
+    size: '5.8 MB', format: 'JPEG', width: 4000, height: 3000,
+    category: '美食',
+    detectedTypes: ['object', 'scene', 'text'],
+    objects: [
+      { name: '拉面碗', confidence: 0.97 },
+      { name: '叉烧', confidence: 0.93 },
+      { name: '鸡蛋', confidence: 0.91 },
+      { name: '筷子', confidence: 0.86 }
+    ],
+    scene: { type: '餐厅', confidence: 0.92 },
+    activity: null,
+    emotion: null,
+    text: {
+      content: '特製味噌ラーメン\n¥1,280',
+      regions: [
+        { text: '特製味噌ラーメン', confidence: 0.93, boundingBox: { x: 30, y: 10, width: 200, height: 30 } },
+        { text: '¥1,280', confidence: 0.96, boundingBox: { x: 50, y: 45, width: 80, height: 25 } }
+      ]
+    },
+    tags: ['拉面', '日料', '叉烧', '溏心蛋', '热气', '美食摄影', '菜单'],
+    exif: { camera: 'Canon EOS R6 II', lens: 'RF 50mm f/1.2L', aperture: 'f/2.0', shutter: '1/80s', iso: 'ISO 800', focal: '50mm', gps: null, date: '2026-04-05 19:15:42' }
+  },
+  {
+    id: 4, name: 'city_dusk.jpg', src: 'assets/img-city.jpg',
+    size: '6.3 MB', format: 'JPEG', width: 5120, height: 2880,
+    category: '建筑',
+    detectedTypes: ['object', 'scene', 'emotion', 'text'],
+    objects: [
+      { name: '摩天大楼', confidence: 0.94 },
+      { name: '灯光', confidence: 0.89 }
+    ],
+    scene: { type: '城市天际线', confidence: 0.97 },
+    activity: null,
+    emotion: { type: '震撼', confidence: 0.85 },
+  text: {
+    content: 'CENTRAL AVENUE\nNO. 1288',
+    regions: [
+      { text: 'CENTRAL AVENUE', confidence: 0.97, boundingBox: { x: 200, y: 350, width: 280, height: 45 } },
+      { text: 'NO. 1288', confidence: 0.94, boundingBox: { x: 240, y: 400, width: 120, height: 35 } }
+    ]
+  },
+  tags: ['城市', '天际线', '黄昏', '摩天楼', '玻璃幕墙', '都市'],
+    exif: { camera: 'Nikon Z8', lens: 'NIKKOR Z 24-120mm f/4 S', aperture: 'f/11', shutter: '1/125s', iso: 'ISO 200', focal: '35mm', gps: '31.23°N, 121.47°E', date: '2026-04-03 18:45:30' }
+  },
+  {
+    id: 5, name: 'alpine_lake.jpg', src: 'assets/img-mountain.jpg',
+    size: '7.1 MB', format: 'JPEG', width: 6000, height: 4000,
+    category: '风景',
+    detectedTypes: ['object', 'scene', 'emotion'],
+    objects: [
+      { name: '山峰', confidence: 0.96 },
+      { name: '湖泊', confidence: 0.94 },
+      { name: '松树', confidence: 0.88 }
+    ],
+    scene: { type: '山脉', confidence: 0.98 },
+    activity: null,
+    emotion: { type: '宁静', confidence: 0.92 },
+    tags: ['雪山', '湖泊', '倒影', '松林', '高原', '自然'],
+    exif: { camera: 'Sony A7R V', lens: 'FE 16-35mm f/2.8 GM II', aperture: 'f/8', shutter: '1/250s', iso: 'ISO 100', focal: '20mm', gps: '46.82°N, 8.23°E', date: '2026-03-28 10:12:55' }
+  },
+  {
+    id: 6, name: 'family_park.jpg', src: 'assets/img-portrait.jpg',
+    size: '3.5 MB', format: 'JPEG', width: 3648, height: 2432,
+    category: '家庭',
+    detectedTypes: ['object', 'scene', 'activity', 'emotion'],
+    objects: [
+      { name: '成人', confidence: 0.96 },
+      { name: '儿童', confidence: 0.94 },
+      { name: '树木', confidence: 0.87 }
+    ],
+    scene: { type: '公园', confidence: 0.91 },
+    activity: { type: '玩耍', confidence: 0.88 },
+    emotion: { type: '温馨', confidence: 0.93 },
+    tags: ['家庭', '公园', '亲子', '金色时光', '草地', '幸福'],
+    exif: { camera: 'Canon EOS R6 II', lens: 'RF 85mm f/1.2L', aperture: 'f/2.8', shutter: '1/500s', iso: 'ISO 200', focal: '85mm', gps: null, date: '2026-03-25 16:08:33' }
+  },
+  {
+    id: 7, name: 'workspace_dev.jpg', src: 'assets/img-office.jpg',
+    size: '2.8 MB', format: 'JPEG', width: 2560, height: 1440,
+    category: '科技',
+    detectedTypes: ['object', 'scene'],
+    objects: [
+      { name: '显示器', confidence: 0.97 },
+      { name: '键盘', confidence: 0.93 },
+      { name: '咖啡杯', confidence: 0.88 },
+      { name: '植物', confidence: 0.82 }
+    ],
+    scene: { type: '办公室', confidence: 0.95 },
+    activity: null,
+    emotion: null,
+    tags: ['办公', '编程', '显示器', '极简', '桌面', '工作空间'],
+    exif: { camera: 'iPhone 17 Pro', lens: '主摄 26mm', aperture: 'f/1.78', shutter: '1/30s', iso: 'ISO 250', focal: '26mm', gps: null, date: '2026-03-20 22:45:12' }
+  },
+  {
+    id: 8, name: 'purple_flower.jpg', src: 'assets/img-flower.jpg',
+    size: '4.5 MB', format: 'JPEG', width: 4000, height: 4000,
+    category: '风景',
+    detectedTypes: ['object', 'scene', 'emotion'],
+    objects: [
+      { name: '花朵', confidence: 0.99 },
+      { name: '水滴', confidence: 0.91 }
+    ],
+    scene: { type: '花园', confidence: 0.86 },
+    activity: null,
+    emotion: { type: '神秘', confidence: 0.78 },
+    tags: ['花卉', '紫色', '微距', '水滴', '花瓣', '春天'],
+    exif: { camera: 'Nikon Z8', lens: 'NIKKOR Z MC 105mm f/2.8 VR S', aperture: 'f/4.0', shutter: '1/200s', iso: 'ISO 400', focal: '105mm', gps: null, date: '2026-03-18 09:30:28' }
+  }
+];
+
+// ═══════════════════════════════════════════
+// PEOPLE DATA & RENDERING
+// ═══════════════════════════════════════════
+const peopleData = [
+  { id: 'p1', name: '爸爸', avatar: 'assets/img-portrait.jpg', count: 23, firstSeen: '2026-03-15', lastSeen: '2026-04-12' },
+  { id: 'p2', name: '妈妈', avatar: 'assets/img-portrait.jpg', count: 31, firstSeen: '2026-03-15', lastSeen: '2026-04-12' },
+  { id: 'p3', name: '小明', avatar: 'assets/img-portrait.jpg', count: 18, firstSeen: '2026-03-20', lastSeen: '2026-04-10' },
+  { id: 'p4', name: '小红', avatar: 'assets/img-portrait.jpg', count: 15, firstSeen: '2026-03-22', lastSeen: '2026-04-08' },
+  { id: 'p5', name: '人物 #5', avatar: 'assets/img-portrait.jpg', count: 7, firstSeen: '2026-04-01', lastSeen: '2026-04-11' },
+  { id: 'p6', name: '人物 #6', avatar: 'assets/img-portrait.jpg', count: 4, firstSeen: '2026-04-05', lastSeen: '2026-04-12' },
+];
+
+function renderPeople() {
+  const grid = document.getElementById('peopleGrid');
+  grid.innerHTML = peopleData.map(p => `
+    <div class="person-card" onclick="selectPerson(this, '${p.id}')" ondblclick="filterByPerson('${p.id}')">
+      <div class="person-merge-badge">✓</div>
+      <img class="person-avatar" src="${p.avatar}" alt="${p.name}" />
+      <div class="person-name" ondblclick="event.stopPropagation(); editPersonName(this, '${p.id}')">${p.name}</div>
+      <div class="person-stat">${p.count} 张照片</div>
+    </div>
+  `).join('');
+}
+
+function selectPerson(el, id) {
+  el.classList.toggle('selected');
+}
+
+function editPersonName(el, id) {
+  el.contentEditable = 'true';
+  el.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+
+  const finish = () => {
+    el.contentEditable = 'false';
+    const person = peopleData.find(p => p.id === id);
+    if (person) person.name = el.textContent.trim();
+  };
+
+  el.addEventListener('blur', finish, { once: true });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+  });
+}
+
+function filterByPerson(id) {
+  switchPage('browse');
+  // In real app: filter image grid by person_id
+}
+
+// ═══════════════════════════════════════════
+// RENDER IMAGE GRID
+// ═══════════════════════════════════════════
+function renderGrid() {
+  const grid = document.getElementById('imageGrid');
+  grid.innerHTML = imageData.map(img => `
+    <div class="image-card" onclick="openDetail(${img.id})" ondblclick="openPreview(${img.id})">
+      <img src="${img.src}" alt="${img.name}" loading="lazy" />
+      <div class="ai-badge">
+        <div class="ai-type-dot ${img.detectedTypes.includes('object') ? 'object' : ''}"></div>
+        <div class="ai-type-dot ${img.detectedTypes.includes('scene') ? 'scene' : ''}"></div>
+        <div class="ai-type-dot ${img.detectedTypes.includes('activity') ? 'activity' : ''}"></div>
+        <div class="ai-type-dot ${img.detectedTypes.includes('emotion') ? 'emotion' : ''}"></div>
+        <div class="ai-type-dot ${img.detectedTypes.includes('text') ? 'text' : ''}"></div>
+      </div>
+      <div class="overlay">
+        <div class="filename">${img.name}</div>
+        <div class="tags">
+          <span class="tag">${img.category}</span>
+          ${img.tags.slice(0, 3).map(t => `<span class="tag">${t}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════
+// DETAIL PANEL
+// ═══════════════════════════════════════════
+let currentDetailTab = 'ai';
+
+function openDetail(id) {
+  const img = imageData.find(i => i.id === id);
+  if (!img) return;
+
+  document.getElementById('detailThumb').src = img.src;
+  document.getElementById('detailName').textContent = img.name;
+  document.getElementById('detailMeta').textContent = `${img.width} × ${img.height} · ${img.size} · ${img.format}`;
+  document.getElementById('detailPanel').classList.add('open');
+
+  renderDetailContent(img, currentDetailTab);
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+function switchDetailTab(el, tab) {
+  document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentDetailTab = tab;
+
+  const activeCard = document.querySelector('.image-card:hover, .image-card.selected');
+  const id = parseInt(document.getElementById('detailName').dataset.id) || imageData[0].id;
+  const img = imageData.find(i => i.id === id) || imageData[0];
+  renderDetailContent(img, tab);
+}
+
+function renderDetailContent(img, tab) {
+  const body = document.getElementById('detailBody');
+
+  if (tab === 'ai') {
+    body.innerHTML = `
+      <div class="detail-section">
+        <div class="detail-section-title">自动分类</div>
+        <div class="category-badge">${img.category}</div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">识别维度</div>
+        ${renderDimension('物体识别', 'object', img.objects.length > 0 ? `${img.objects.length} 个物体` : null, img.objects.length > 0 ? 0.95 : null)}
+        ${renderDimension('场景识别', 'scene', img.scene.type, img.scene.confidence)}
+        ${renderDimension('活动识别', 'activity', img.activity ? img.activity.type : null, img.activity ? img.activity.confidence : null)}
+        ${renderDimension('情绪识别', 'emotion', img.emotion ? img.emotion.type : null, img.emotion ? img.emotion.confidence : null)}
+        ${renderDimension('文字识别', 'text', img.text ? img.text.content.substring(0, 30) + (img.text.content.length > 30 ? '…' : '') : null, img.text ? img.text.regions[0].confidence : null)}
+      </div>
+
+      ${img.objects.length > 0 ? `
+      <div class="detail-section">
+        <div class="detail-section-title">物体列表</div>
+        ${img.objects.map(obj => `
+          <div class="object-item">
+            <span class="obj-name">${obj.name}</span>
+            <span class="obj-conf">${(obj.confidence * 100).toFixed(0)}%</span>
+          </div>
+        `).join('')}
+      </div>` : ''}
+
+      <div class="detail-section">
+        <div class="detail-section-title">标签</div>
+        <div class="tag-list">
+          ${img.tags.map(t => `<span class="tag-item">${t}</span>`).join('')}
+          <span class="tag-item user-tag">+ 添加</span>
+        </div>
+      </div>
+
+      ${img.text ? `
+      <div class="detail-section">
+        <div class="detail-section-title">识别文字</div>
+        <div class="text-content-box">${img.text.content.replace(/\n/g, '<br>')}</div>
+        <div class="text-regions">
+          ${img.text.regions.map((r, i) => `
+            <div class="text-region-item">
+              <span class="region-idx">${i + 1}</span>
+              <span class="region-text">${r.text}</span>
+              <span class="region-conf">${(r.confidence * 100).toFixed(0)}%</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>` : ''}
+    `;
+  } else if (tab === 'exif') {
+    const e = img.exif;
+    body.innerHTML = `
+      <div class="detail-section">
+        <div class="detail-section-title">相机信息</div>
+        <div class="detail-row"><span class="label">相机</span><span class="value">${e.camera}</span></div>
+        <div class="detail-row"><span class="label">镜头</span><span class="value">${e.lens}</span></div>
+        <div class="detail-row"><span class="label">焦距</span><span class="value">${e.focal}</span></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">拍摄参数</div>
+        <div class="detail-row"><span class="label">光圈</span><span class="value">${e.aperture}</span></div>
+        <div class="detail-row"><span class="label">快门</span><span class="value">${e.shutter}</span></div>
+        <div class="detail-row"><span class="label">ISO</span><span class="value">${e.iso}</span></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">位置与时间</div>
+        <div class="detail-row"><span class="label">拍摄时间</span><span class="value">${e.date}</span></div>
+        <div class="detail-row"><span class="label">GPS</span><span class="value">${e.gps || '无'}</span></div>
+      </div>
+    `;
+  } else if (tab === 'info') {
+    body.innerHTML = `
+      <div class="detail-section">
+        <div class="detail-section-title">文件信息</div>
+        <div class="detail-row"><span class="label">文件名</span><span class="value">${img.name}</span></div>
+        <div class="detail-row"><span class="label">格式</span><span class="value">${img.format}</span></div>
+        <div class="detail-row"><span class="label">尺寸</span><span class="value">${img.width} × ${img.height}</span></div>
+        <div class="detail-row"><span class="label">文件大小</span><span class="value">${img.size}</span></div>
+        <div class="detail-row"><span class="label">MD5</span><span class="value" style="font-family:var(--font-mono); font-size:10px;">a3f8c2d1e5b7…</span></div>
+        <div class="detail-row"><span class="label">导入时间</span><span class="value">2026-04-12 14:30</span></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">AI 识别信息</div>
+        <div class="detail-row"><span class="label">识别时间</span><span class="value">2026-04-12 14:30:05</span></div>
+        <div class="detail-row"><span class="label">识别维度</span><span class="value">${img.detectedTypes.join('、')}</span></div>
+        <div class="detail-row"><span class="label">AI 模式</span><span class="value">云端 API (GPT-4o Vision)</span></div>
+        <div class="detail-row"><span class="label">压缩图大小</span><span class="value">387 KB (WebP)</span></div>
+      </div>
+    `;
+  }
+}
+
+function renderDimension(label, type, value, confidence) {
+  const confClass = confidence >= 0.8 ? 'high' : confidence >= 0.6 ? 'medium' : 'low';
+  const confWidth = confidence ? (confidence * 100) : 0;
+  return `
+    <div class="ai-dimension">
+      <div class="ai-dimension-header">
+        <div class="ai-dimension-label">
+          <div class="dot ${type}"></div>
+          ${label}
+        </div>
+        ${confidence ? `<span class="ai-confidence">${(confidence * 100).toFixed(0)}%</span>` : ''}
+      </div>
+      <div class="ai-value ${value ? '' : 'null'}">${value || '未识别'}</div>
+      ${confidence ? `<div class="confidence-bar"><div class="confidence-bar-fill ${confClass}" style="width: ${confWidth}%"></div></div>` : ''}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════
+// PREVIEW MODAL
+// ═══════════════════════════════════════════
+let currentPreviewIndex = -1;
+let isPreviewOpen = false;
+
+function openPreview(id) {
+  const idx = imageData.findIndex(i => i.id === id);
+  if (idx === -1) return;
+  currentPreviewIndex = idx;
+  isPreviewOpen = true;
+  updatePreviewContent();
+  document.getElementById('previewModal').classList.add('open');
+}
+
+function closePreview() {
+  isPreviewOpen = false;
+  currentPreviewIndex = -1;
+  document.getElementById('previewModal').classList.remove('open');
+}
+
+function navigatePreview(direction) {
+  if (!isPreviewOpen) return;
+  const total = imageData.length;
+  currentPreviewIndex = (currentPreviewIndex + direction + total) % total;
+
+  const img = document.getElementById('previewImage');
+  img.classList.add('switching');
+
+  setTimeout(() => {
+    updatePreviewContent();
+    img.classList.remove('switching');
+  }, 100);
+}
+
+function updatePreviewContent() {
+  const img = imageData[currentPreviewIndex];
+  document.getElementById('previewImage').src = img.src;
+  document.getElementById('previewFilename').textContent = img.name;
+  document.getElementById('previewCounter').textContent = `${currentPreviewIndex + 1} / ${imageData.length}`;
+}
+
+// ═══════════════════════════════════════════
+// PAGE SWITCHING
+// ═══════════════════════════════════════════
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  const target = document.getElementById(`page-${page}`);
+  if (target) target.classList.add('active');
+
+  const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (navItem) navItem.classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// FILTER CHIPS
+// ═══════════════════════════════════════════
+function setFilter(el) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function filterByCategory(cat) {
+  switchPage('browse');
+  // In a real app, this would filter the grid
+}
+
+// ═══════════════════════════════════════════
+// IMPORT DIALOG
+// ═══════════════════════════════════════════
+function openImportDialog() {
+  document.getElementById('importDialog').classList.add('open');
+}
+
+function closeImportDialog() {
+  document.getElementById('importDialog').classList.remove('open');
+}
+
+function selectImportOption(el) {
+  document.querySelectorAll('.import-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ═══════════════════════════════════════════
+// PROGRESS PANEL
+// ═══════════════════════════════════════════
+function toggleProgressPanel() {
+  const panel = document.getElementById('progressPanel');
+  const backdrop = document.getElementById('progressBackdrop');
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open');
+  backdrop.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closePreview();
+    closeImportDialog();
+    if (document.getElementById('progressPanel').classList.contains('open')) {
+      toggleProgressPanel();
+    }
+  }
+  if (!isPreviewOpen) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); navigatePreview(-1); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); navigatePreview(1); }
+});
+
+// Wheel to navigate in preview
+document.getElementById('previewModal').addEventListener('wheel', (e) => {
+  if (!isPreviewOpen) return;
+  e.preventDefault();
+  navigatePreview(e.deltaY > 0 ? 1 : -1);
+}, { passive: false });
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+renderGrid();
+renderPeople();
+</script>
+</body>
+</html>
